@@ -2,11 +2,11 @@
   <div>
     <div @click="send">派发</div>
     <div @click="reset">reset</div>
-    <div>房间{{room.id}}, 底分 {{room.basicScore}}</div>
-    <div>底牌:
+    <div>room{{room.id}}, score {{room.basicScore}}</div>
+    <div>底pai:
       <div v-for="cards in room.cardsPai">{{cards.type}}, {{cards.value}} ,权重 {{cards.weight}}</div>
     </div>
-    <ul>
+    <!--<ul>
       <li v-for="player in room.players">
         <div>基本信息：{{player.id}} {{player.total}} {{player.identity}}</div>
         <div v-if="room.canAction">操作:</div>
@@ -17,7 +17,7 @@
           </li>
         </ul>
       </li>
-    </ul>
+    </ul>-->
 
   </div>
 
@@ -133,8 +133,61 @@
       // 持有的
       this.holdPoker = []
       this.proxy = false
+      this.action = false
+      this.nextPlayer = null
+    }
+  }
+
+  class Seat {
+    constructor (id, player = null) {
+      this.id = id
+      this.player = player
+      this.next = null
+    }
+  }
+
+  class SeatList {
+    constructor () {
+      this.getMaxId = (function () {
+        let id = 0
+        return function () {
+          return id++
+        }
+      })()
+      this.head = new Seat(this.getMaxId())
+      // this.insert = insert;
+      // this.remove = remove;
     }
 
+    find (id) {
+      let currentSeat = this.head
+      while (currentSeat.id !== id) {
+        currentSeat = currentSeat.next
+      }
+      return currentSeat
+    }
+
+    last () {
+      let lastSeat = this.head
+      while (lastSeat.next) {
+        lastSeat = lastSeat.next
+      }
+      return lastSeat
+    }
+
+    /* insert (newId, id) {
+      let newSeat = new Seat(newId)
+      let currentSeat = this.find(id)
+      newSeat.next = currentSeat.next
+      currentSeat.next = newSeat
+    }*/
+    add () {
+      let newId = this.getMaxId()
+      let newSeat = new Seat(newId)
+      let lastSeat = this.last()
+      lastSeat.next = newSeat
+      return newSeat
+    }
   }
 
   const basicScore = 6
@@ -152,6 +205,9 @@
       this.basicScore = basicScore
       this.canAction = false
       this.cardsPai = []
+
+      this.actionPlayer = null
+      this.seatList = new SeatList()
     }
 
     addPlayer (player) {
@@ -159,6 +215,8 @@
       if (this.players.length > this.maxPlayer) {
         return
       }
+      let seat = this.seatList.add()
+      seat.player = player
       this.players.push(player)
     }
 
@@ -172,10 +230,11 @@
 
     // 随机分配 bigwigs角色  并获取 特权
     randomAllotByKing (amount = 1, rule = playerType.bigwigs) {
-      let checkedPlayer = this.players[Math.floor(Math.random() * this.getPlayerLen())]
-      checkedPlayer.identity = playerType.bigwigs
-      checkedPlayer.holdPoker.push(...this.cardsPai)
-      pokerSort(checkedPlayer.holdPoker)
+      let kingPlayer = this.players[Math.floor(Math.random() * this.getPlayerLen())]
+      kingPlayer.identity = rule
+      kingPlayer.holdPoker.push(...this.cardsPai)
+      pokerSort(kingPlayer.holdPoker)
+      this.actionPlayer = kingPlayer
     }
 
     // 分配pai
@@ -198,11 +257,6 @@
       this.cardsPai = []
       this.players.forEach((player, index) => player.holdPoker = [])
     }
-
-    /* // 下一个操作
-    nextPlayer () {
-
-    }*/
 
   }
 
@@ -231,15 +285,13 @@
       },
       send () {
         if (this.room.players.length < this.room.minPlayer) {
-          alert('不准')
+          alert('不准操作')
           return
         }
-        let time = this.test(() => {
-          this.room.setCards()
-          this.room.allot()
-          this.room.pokerSort()
-        })
-        console.log('send', time)
+        this.room.setCards()
+        this.room.allot()
+        this.room.pokerSort()
+        console.log('seatList', this.room.seatList)
       },
       reset () {
         this.initPai()
