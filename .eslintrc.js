@@ -102,7 +102,7 @@ module.exports = {
     // 强制把变量的使用限制在其定义的作用域范围内
     'block-scoped-var': 0,
     // 限制圈复杂度，也就是类似if else能连续接多少个
-    'complexity': [2, 9],
+    'complexity': [2, 20],
     //  要求 return 语句要么总是指定返回的值，要么不指定
     'consistent-return': 0,
     // 强制所有控制语句使用一致的括号风格
