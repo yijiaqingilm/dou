@@ -101,7 +101,8 @@
     heart: 1,
     clubs: 2,
     diamonds: 3,
-    king: 4
+    king: 4,
+    bigKing: 5
   }
   let playerType = {
     slave: 0,
@@ -237,111 +238,155 @@
 
     // 分析
     let Analyze = (function () {
-      let maxTypeList = []
-      let otherTypeList = []
-      let wrap = {}
-      let maxAmount = 0
-
       class Analyze {
         constructor (pokerArr = []) {
           this.pokerArr = pokerArr
-          wrap = {}
-          maxTypeList = []
-          otherTypeList = []
-          maxAmount = 0
+          this.wrap = {}
+          this.maxTypeList = []
+          this.otherTypeList = []
+          this.maxAmount = 0
+          this.compose = null
+          this.minWeight = null
+          this.isResolve = null
+          this.isSerial = null
           this.pokerArr.forEach((poker) => {
-            if (wrap[poker.weight]) {
-              wrap[poker.weight].amount++
-              if (wrap[poker.weight].amount > maxAmount) {
-                maxAmount = wrap[poker.weight].amount
+            if (this.wrap[poker.weight]) {
+              this.wrap[poker.weight].amount++
+              if (this.wrap[poker.weight].amount > this.maxAmount) {
+                this.maxAmount = this.wrap[poker.weight].amount
               }
             } else {
-              wrap[poker.weight] = {amount: 1, serial: poker.serial, weight: poker.weight}
+              this.wrap[poker.weight] = {amount: 1, serial: poker.serial, weight: poker.weight}
             }
           })
 
-          for (let key in wrap) {
-            if (wrap.hasOwnProperty(key) && wrap[key].amount === maxAmount) {
-              maxTypeList.push(wrap[key])
+          for (let key in this.wrap) {
+            if (this.wrap.hasOwnProperty(key) && this.wrap[key].amount === this.maxAmount) {
+              this.maxTypeList.push(this.wrap[key])
             } else {
-              otherTypeList.push(wrap[key])
+              this.otherTypeList.push(this.wrap[key])
             }
           }
         }
 
-        // 获取最大类型的总和
-        getTypeTotal () {
-          return maxTypeList
-        }
-
-        // 获取最大类型
+        // 获取最多的重复类型 1-4
         getMaxType () {
-          return maxAmount
+          return this.maxAmount
         }
 
-        // 最大类型的是否是连续的
+        // 获取最多的重复类型 中最小的权重
+        getMinWeight () {
+          return this.minWeight
+        }
+
+        // 最多的重复类型是否是连续的
         isSerial () {
-          let serialCount = maxTypeList.length
-          // 首先判断是否满足连续条件 ==》连续的次数maxTypeList.length
-          if (serialCount >= composeWarp.get(this.getMaxType()).serial) {
-            // 排序 ， 2.判断是否是连续的
-            pokerSort(maxTypeList)
-            for (let i = 0; i < serialCount; i++) {
-              // 当前对象是否可允许连续
-              if (maxTypeList[i].serial) {
-                // 是否所有的最大的类型 满足连续
-                if ((i + 1) < serialCount) {
-                  if (maxTypeList[i].weight - 1 === maxTypeList[i + 1].weight) {
-                    continue
+          if (this.isSerial === null) {
+            let serialCount = this.maxTypeList.length
+            // 首先判断是否满足连续条件 ==》连续的次数maxTypeList.length
+            if (serialCount >= composeWarp.get(this.getMaxType()).serial) {
+              // 排序 ， 2.判断是否是连续的
+              pokerSort(this.maxTypeList)
+              for (let i = 0; i < serialCount; i++) {
+                // 当前对象是否可允许连续
+                if (this.maxTypeList[i].serial) {
+                  // 是否所有的最大的类型 满足连续
+                  if ((i + 1) < serialCount) {
+                    if (this.maxTypeList[i].weight - 1 === this.maxTypeList[i + 1].weight) {
+                      continue
+                    } else {
+                      this.isSerial = false
+                      return false
+                    }
                   } else {
-                    return false
+                    this.minWeight = this.maxTypeList[serialCount - 1].weight
+                    this.isSerial = true
+                    return true
                   }
                 } else {
-                  return true
+                  this.isSerial = false
+                  return false
                 }
-              } else {
-                return false
               }
+            } else {
+              return false
             }
+          } else {
+            return this.isSerial
+          }
+
+        }
+
+        // 对比
+        compare (pokerB) {
+          if (this.pokerArr.length === pokerB.length) {
+            // ----- 组成一样
+            let analyzeB = new Analyze(pokerB)
+            if (this.isResolve() === analyzeB.isResolve() && this.getMaxType() === analyzeB.getMaxType() && this.getResolveCompose() === analyzeB.getResolveCompose() && this.getMinWeight() < analyzeB.getMinWeight()) {
+              return true
+            } else {
+              return false
+            }
+          } else {
+            if (this.isResolve()) {
+              // 为4张类型的// 组成 为2张类型的
+              if (this.getMaxType() === 4) {
+                return true
+              } else if (this.doubleKing()) {
+                return true
+              }
+            } else {
+              return false
+            }
+
+          }
+        }
+
+        // 满足 双king
+        doubleKing () {
+          if (this.pokerArr.length === 2) {
+            return this.pokerArr.every((poker) => poker.type === pokerType.bigKing || poker.type === pokerType.king)
           } else {
             return false
           }
         }
 
-        // 对比
-        compare (pokerB) {
-          // if 出手poker len 一样
-          if (this.pokerArr.length === pokerB.length) {
-            // -----出手poker 组成一样
-
-            // -----出手poker 组成类型最小的 要大于被压制的poker组成类型最小的
-            return true
-          } else {
-            // else 出手poker len 不一样
-            // poker 组成 为4张类型的
-            // poker 组成 为2张类型的
-
-            return true
-          }
-        }
-
+        // 满足 出手的条件
         isResolve () {
           let isResolve = false
-          let serialCount = maxTypeList.length
-          if (this.isSerial() || maxTypeList.length === 1) {
-            let rule = composeWarp.get(this.getMaxType())
-            let composes = rule.compose
-            if (composes.length > 0) {
-              let otherType = otherTypeList.length
-              let otherAmount = otherTypeList.map((item) => item.amount).reduce((a, b) => a + b, 0)
-              isResolve = rule.someCompose(otherAmount, otherType, serialCount)
-            } else {
-              if (otherTypeList.length === 0) {
-                isResolve = true
+          if (this.isResolve == null) {
+            if (this.isSerial() || this.maxTypeList.length === 1) {
+              let rule = composeWarp.get(this.getMaxType())
+              let composes = rule.compose
+              if (composes.length > 0) {
+                isResolve = this.getResolveCompose().length > 0
               } else {
-                isResolve = false
+                if (this.otherTypeList.length === 0) {
+                  isResolve = true
+                } else {
+                  isResolve = false
+                }
               }
             }
+            this.isResolve = isResolve
+            return this.isResolve
+          } else {
+            return this.isResolve
+          }
+
+        }
+
+        // 获取组合的方式
+        getResolveCompose () {
+          if (this.compose) {
+            return this.compose
+          } else {
+            let rule = composeWarp.get(this.getMaxType())
+            let otherType = this.otherTypeList.length
+            let serialCount = this.maxTypeList.length
+            let otherAmount = this.otherTypeList.map((item) => item.amount).reduce((a, b) => a + b, 0)
+            this.compose = rule.someCompose(otherAmount, otherType, serialCount)
+            return this.compose
           }
         }
       }
@@ -426,139 +471,16 @@
       }
 
       /**
-       * 分析出手
-       * @param pokerArr
-       * @return {boolean}
-       */
-      resolvePoker (pokerArr = []) {
-        // 是否可出
-        let isResolve = true
-        // key ==> type,value=amount
-        let sortPoker = {}
-        // 最多type的数量
-        let maxAmount = 0
-        // 最多的type集合
-        let maxTypeList = []
-        // 其他类型的数量
-        let otherTypeList = []
-        // 最多的type 是否是连续的
-        let isCountinues = false
-        pokerArr.forEach((poker) => {
-          if (sortPoker[poker.weight]) {
-            sortPoker[poker.weight].amount++
-          } else {
-            sortPoker[poker.weight] = {amount: 1, serial: poker.serial, weight: poker.weight}
-          }
-        })
-
-        for (let key in sortPoker) {
-          if (sortPoker.hasOwnProperty(key) && sortPoker[key].amount > maxAmount) {
-            maxAmount = sortPoker[key].amount
-          }
-        }
-        for (let key in sortPoker) {
-          if (sortPoker.hasOwnProperty(key) && sortPoker[key].amount === maxAmount) {
-            maxTypeList.push(sortPoker[key])
-          } else {
-            otherTypeList.push(sortPoker[key])
-          }
-        }
-        // 首先判断是否满足连续条件 ==》连续的次数maxTypeList.length
-        if (maxTypeList.length >= rule[maxTypeList[0].amount].minserial) {
-          // 排序 ， 2.判断是否是连续的
-          pokerSort(maxTypeList)
-          for (let i = 0; i < maxTypeList.length; i++) {
-            // 当前对象是否可允许连续
-            if (maxTypeList[i].serial) {
-              // 是否所有的最大的类型 满足连续
-              if ((i + 1) < maxTypeList.length) {
-                if (maxTypeList[i].weight - 1 === maxTypeList[i + 1].weight) {
-                  continue
-                } else {
-                  isCountinues = false
-                  break
-                }
-              } else {
-                isCountinues = true
-                break
-              }
-            } else {
-              isCountinues = false
-              break
-            }
-          }
-        } else {
-          isCountinues = false
-        }
-        if (isCountinues) {
-          let composes = rule[maxTypeList[0].amount].compose
-          if (composes.length > 0) {
-            let otherType = otherTypeList.length
-            let otherAmount = otherTypeList.map((item) => item.amount).reduce((a, b) => a + b, 0)
-            isResolve = composes.some((compose) => (compose.amount * maxTypeList.length === otherAmount || compose.amount === otherAmount) && compose.type * maxTypeList.length === otherType)
-          } else {
-            if (otherTypeList.length === 0) {
-              isResolve = true
-            } else {
-              isResolve = false
-            }
-          }
-        } else {
-          if (maxTypeList.length === 1) {
-            let composes = rule[maxTypeList[0].amount].compose
-            if (composes.length > 0) {
-              let otherType = otherTypeList.length
-              let otherAmount = otherTypeList.map((item) => item.amount).reduce((a, b) => a + b, 0)
-              isResolve = composes.some((compose) => (compose.amount * maxTypeList.length === otherAmount || compose.amount === otherAmount) && compose.type * maxTypeList.length === otherType)
-            } else {
-              if (otherTypeList.length === 0) {
-                isResolve = true
-              } else {
-                isResolve = false
-              }
-            }
-          } else {
-            isResolve = false
-          }
-
-        }
-        return isResolve
-      }
-
-      /**
-       * 压制出手
-       * @param currentPoker
-       * @param prevPoker
-       * @return {boolean}
-       */
-      suppressedPoker (currentPoker = [], prevPoker = []) {
-        // if 出手poker len 一样
-        if (currentPoker.length === prevPoker.length) {
-          // -----出手poker 组成一样
-          // -----出手poker 组成类型最小的 要大于被压制的poker组成类型最小的
-          return true
-        } else {
-          // else 出手poker len 不一样
-          // poker 组成 为4张类型的
-          // poker 组成 为2张类型的
-
-          return true
-        }
-      }
-
-      /**
        * 检查是否满足出手条件
        * @param checkPokerArr
        * @param prevpokerArr
        * @return {*}
        */
       checkAction (checkPokerArr, prevpokerArr = []) {
+        let analyze = new Analyze(checkPokerArr)
         if (prevpokerArr.length > 0) {
-          console.log('checked', checkPokerArr)
-          return this.suppressedPoker(checkPokerArr, prevpokerArr)
+          return analyze.compare(prevpokerArr)
         } else {
-          let analyze = new Analyze(checkPokerArr)
-          // return this.resolvePoker(checkPokerArr)
           return analyze.isResolve()
         }
 
@@ -630,11 +552,11 @@
       return this.compose.filter((compose) => compose.amount === amount)
     }
 
-    findCompose (amount, type) {
-      return this.compose.find((compose) => compose.amount === amount && compose.type === type)
-    }
+    /* findCompose (amount, type) {
+       return this.compose.find((compose) => compose.amount === amount && compose.type === type)
+     }*/
 
-    someCompose (otherAmount, otherType, serialTotal) {
+    findCompose (otherAmount, otherType, serialTotal) {
       return this.compose.some((compose) => (compose.amount * serialTotal === otherAmount || compose.amount === otherAmount) && compose.type * serialTotal === otherType)
     }
 
@@ -741,7 +663,7 @@
             }
           })
           this.pokerArr.push(new Poker(pokerType.king, ' king', pokerNumber.length))
-          this.pokerArr.push(new Poker(pokerType.king, 'big king', pokerNumber.length + 1))
+          this.pokerArr.push(new Poker(pokerType.bigKing, 'big king', pokerNumber.length))
           console.log(this.pokerArr)
         } else {
           this.pokerArr = pokerPai
