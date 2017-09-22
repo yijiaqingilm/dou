@@ -276,7 +276,13 @@
 
         // 获取最多的重复类型 中最小的权重
         getMinWeight () {
-          return this.minWeight
+          let weight = Number.MAX_VALUE
+          this.maxTypeList.forEach((item) => {
+            if (item.weight < weight) {
+              weight = item.weight
+            }
+          })
+          return weight
         }
 
         // 最多的重复类型是否是连续的
@@ -323,7 +329,11 @@
           if (this.pokerArr.length === pokerB.length) {
             // ----- 组成一样
             let analyzeB = new Analyze(pokerB)
-            if (this.isResolve() === analyzeB.isResolve() && this.getMaxType() === analyzeB.getMaxType() && this.getResolveCompose() === analyzeB.getResolveCompose() && this.getMinWeight() > analyzeB.getMinWeight()) {
+            if (this.isResolve() === analyzeB.isResolve() &&
+              this.getMaxType() === analyzeB.getMaxType() &&
+              this.getResolveCompose().length === analyzeB.getResolveCompose().length &&
+              (this.getResolveCompose().length > 0 ? this.getResolveCompose().eq(analyzeB.getResolveCompose()) : true) &&
+              this.getMinWeight() > analyzeB.getMinWeight()) {
               return true
             } else {
               return false
@@ -335,6 +345,8 @@
                 return true
               } else if (this.doubleKing()) {
                 return true
+              } else {
+                return false
               }
             } else {
               return false
@@ -532,6 +544,10 @@
       this.amount = amount
       // 组合类型
       this.type = type
+    }
+
+    eq (composeB) {
+      return composeB.amount === this.amount && composeB.type === this.type
     }
   }
 
