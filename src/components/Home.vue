@@ -247,8 +247,8 @@
           this.maxAmount = 0
           this.compose = null
           this.minWeight = null
-          this.isResolve = null
-          this.isSerial = null
+          this.resolve = null
+          this.serial = null
           this.pokerArr.forEach((poker) => {
             if (this.wrap[poker.weight]) {
               this.wrap[poker.weight].amount++
@@ -281,7 +281,7 @@
 
         // 最多的重复类型是否是连续的
         isSerial () {
-          if (this.isSerial === null) {
+          if (this.serial === null) {
             let serialCount = this.maxTypeList.length
             // 首先判断是否满足连续条件 ==》连续的次数maxTypeList.length
             if (serialCount >= composeWarp.get(this.getMaxType()).serial) {
@@ -295,20 +295,21 @@
                     if (this.maxTypeList[i].weight - 1 === this.maxTypeList[i + 1].weight) {
                       continue
                     } else {
-                      this.isSerial = false
+                      this.serial = false
                       return false
                     }
                   } else {
                     this.minWeight = this.maxTypeList[serialCount - 1].weight
-                    this.isSerial = true
+                    this.serial = true
                     return true
                   }
                 } else {
-                  this.isSerial = false
+                  this.serial = false
                   return false
                 }
               }
             } else {
+              this.serial = false
               return false
             }
           } else {
@@ -322,7 +323,7 @@
           if (this.pokerArr.length === pokerB.length) {
             // ----- 组成一样
             let analyzeB = new Analyze(pokerB)
-            if (this.isResolve() === analyzeB.isResolve() && this.getMaxType() === analyzeB.getMaxType() && this.getResolveCompose() === analyzeB.getResolveCompose() && this.getMinWeight() < analyzeB.getMinWeight()) {
+            if (this.isResolve() === analyzeB.isResolve() && this.getMaxType() === analyzeB.getMaxType() && this.getResolveCompose() === analyzeB.getResolveCompose() && this.getMinWeight() > analyzeB.getMinWeight()) {
               return true
             } else {
               return false
@@ -354,7 +355,7 @@
         // 满足 出手的条件
         isResolve () {
           let isResolve = false
-          if (this.isResolve == null) {
+          if (this.resolve == null) {
             if (this.isSerial() || this.maxTypeList.length === 1) {
               let rule = composeWarp.get(this.getMaxType())
               let composes = rule.compose
@@ -368,10 +369,10 @@
                 }
               }
             }
-            this.isResolve = isResolve
-            return this.isResolve
+            this.resolve = isResolve
+            return this.resolve
           } else {
-            return this.isResolve
+            return this.resolve
           }
 
         }
@@ -385,7 +386,7 @@
             let otherType = this.otherTypeList.length
             let serialCount = this.maxTypeList.length
             let otherAmount = this.otherTypeList.map((item) => item.amount).reduce((a, b) => a + b, 0)
-            this.compose = rule.someCompose(otherAmount, otherType, serialCount)
+            this.compose = rule.findCompose(otherAmount, otherType, serialCount)
             return this.compose
           }
         }
@@ -557,7 +558,7 @@
      }*/
 
     findCompose (otherAmount, otherType, serialTotal) {
-      return this.compose.some((compose) => (compose.amount * serialTotal === otherAmount || compose.amount === otherAmount) && compose.type * serialTotal === otherType)
+      return this.compose.filter((compose) => (compose.amount * serialTotal === otherAmount || compose.amount === otherAmount) && compose.type * serialTotal === otherType)
     }
 
   }
